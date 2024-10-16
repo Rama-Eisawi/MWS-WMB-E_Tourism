@@ -10,6 +10,9 @@ use App\Models\Tourist;
 use App\Services\CheckAvailabilityService;
 use App\Traits\ApiResponses;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+
 
 class TourController extends Controller
 {
@@ -20,31 +23,63 @@ class TourController extends Controller
     {
         $this->checkAvailabilityService = $checkAvailabilityService;
     }
-    public function searchForTour(Request $request)
+    public function reportToursByDriver(Request $request)
     {
-        // Validate the search input (for example, search by name or ID)
+        // Validate the input dates
         $request->validate([
-            'search_term' => 'required|string',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
         ]);
 
-        // Search for the tour based on the search term (e.g., tour name or program name)
-        $searchTerm = $request->input('search_term');
+        // Get the date range from the request
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
 
-        // Example: Searching for a tour by name
-        $tour = Tour::where('name', 'like', '%' . $searchTerm . '%')
-            ->orWhereHas('program', function ($query) use ($searchTerm) {
-                $query->where('name', 'like', '%' . $searchTerm . '%');
-            })
-            ->with('program', 'tourists')  // Load related program and tourists
-            ->first();  // Retrieve the first matching result
+        // Query to count how many tours each driver conducted between the two dates
+        $report = Tour::select('driver_id', DB::raw('COUNT(*) as total_tours'))
+            ->whereBetween('start_date', [$startDate, $endDate])
+            ->groupBy('driver_id')
+            ->with('driver') // Eager load driver information
+            ->get();
 
-        // Check if the tour was found
-        if (!$tour) {
-            return $this->failed('No tour found with the provided search term.', 404);
+        // Check if any data was found
+        if ($report->isEmpty()) {
+            return $this->failed('No tours found within the specified date range.', 404);
         }
 
-        // Return the tour details
-        return $this->success($tour, 'Tour details retrieved successfully!', 200);
+        // Return the report
+        return $this->success($report, 'Report generated successfully.', 200);
+    }
+    //------------------------------------------------------------------------------------------------
+
+    public function searchForTour(Request $request)
+    {
+        // Validate the search query
+        $request->validate([
+            'query' => 'required|string|max:255',
+        ]);
+
+        // Get the search query
+        $searchQuery = $request->input('query');
+
+        // Search for tours by ID or related program name, and include guide, driver info, and only available tours
+        $tours = Tour::with(['program', 'guide', 'driver']) // Eager load guide, driver, and program relationships
+            ->available() // Assuming available scope is defined
+            ->where(function ($q) use ($searchQuery) {
+                $q->where('id', $searchQuery) // Search by tour ID
+                    ->orWhereHas('program', function ($q) use ($searchQuery) {
+                        $q->where('name', 'LIKE', '%' . $searchQuery . '%'); // Search for related program names
+                    });
+            })
+            ->get();
+
+        // Check if any tours were found
+        if ($tours->isEmpty()) {
+            return $this->failed('No tours found matching the query.', 404);
+        }
+
+        // Return the results
+        return $this->success($tours, 'Tours found', 200);
     }
     //------------------------------------------------------------------------------------------------
     public function registerInTour($id)

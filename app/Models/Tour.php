@@ -11,7 +11,7 @@ class Tour extends Model
     use HasFactory;
     protected $fillable = ['program_id', 'guide_id', 'driver_id', 'price', 'number', 'start_date', 'end_date'];
 
-    public function diver()
+    public function driver()
     {
         return $this->belongsTo(Driver::class);
     }

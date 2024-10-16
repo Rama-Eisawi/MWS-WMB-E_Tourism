@@ -27,9 +27,9 @@ class Handler extends ExceptionHandler
     ];
     public function render($request, Throwable $exception)
     {
-        if ($exception instanceof ModelNotFoundException) {
+        /*if ($exception instanceof ModelNotFoundException) {
             return $this->failed('Record not found', 404);
-        }
+        }*/
         if ($exception instanceof ValidationException) {
             return $this->failed($exception->errors(), 422);
         }

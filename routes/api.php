@@ -30,6 +30,7 @@ Route::controller(AuthController::class)
 //Admin
 Route::group(['middleware' => ['auth:api', 'admin']], function () {
     Route::resource('programs', ProgramController::class)->except(['index', 'show']);
+    Route::get('/tours/report', [TourController::class, 'reportToursByDriver']);
     Route::resource('tours', TourController::class)->except(['index', 'show']);
     Route::resource('users', UserController::class);
 });
@@ -39,9 +40,8 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/programs/{id}', [ProgramController::class, 'show']); // Show a specific program by ID
     Route::get('/programs', [ProgramController::class, 'index']); // Show all programs
     //Tours
+    Route::get('/tours/search', [TourController::class, 'searchForTour']); // Search for a tour
     Route::get('/tours/{id}', [TourController::class, 'show']); // Show a specific tour by ID
     Route::get('/tours', [TourController::class, 'index']); // Show all available tours
     Route::post('/tours/register/{id}', [TourController::class, 'registerInTour']); // Register in a tour
-    Route::post('/tours/search', [TourController::class, 'searchForTour']); // Register in a tour
-
 });
